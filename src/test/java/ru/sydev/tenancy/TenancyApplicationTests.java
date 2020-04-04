@@ -9,20 +9,23 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
-import ru.sydev.tenancy.company.CompanyRepository;
+import ru.sydev.tenancy.company.CompanyService;
 import ru.sydev.tenancy.company.entity.Company;
-import ru.sydev.tenancy.employee.EmployeeRepository;
+import ru.sydev.tenancy.employee.EmployeeService;
 import ru.sydev.tenancy.employee.entity.Employee;
+import ru.sydev.tenancy.tenancy.RequestContext;
+
+import java.util.UUID;
 
 @ExtendWith(SpringExtension.class)
 @SpringBootTest
 class TenancyApplicationTests {
 
 	@Autowired
-	private CompanyRepository companyRepository;
+	private CompanyService companyService;
 
 	@Autowired
-	private EmployeeRepository employeeRepository;
+	private EmployeeService employeeService;
 
 	@Test
 	void contextLoads() {
@@ -32,22 +35,39 @@ class TenancyApplicationTests {
 	void createCompany() {
 		final String name = "ABC";
 
-		final Company savedCompany = companyRepository.save(new Company( name ));
-		final Company foundCompany = companyRepository.findById(savedCompany.getId()).get();
+		final UUID tenantId = UUID.randomUUID();
+		RequestContext.getContext().setTenantId(tenantId);
+		final Company savedCompany = companyService.create(name);
+		Company foundCompany = null;
+
+		try {
+			foundCompany = companyService.get(savedCompany.getId());
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 
 		assertThat(foundCompany, is(notNullValue()));
 		assertThat(foundCompany.getId(), is(savedCompany.getId()));
+		assertThat(foundCompany.getTenantId(), is(tenantId));
 	}
 
 	@Test
 	void createEmployee() {
-		final Company savedCompany = companyRepository.save(new Company( "ABC" ));
-		final Company foundCompany = companyRepository.findById(savedCompany.getId()).get();
+		final Employee savedEmployee = employeeService.create("John Doe");
 
-		final Employee savedEmployee = employeeRepository.save(new Employee("John Doe"));
-		final Employee foundEmployee = employeeRepository.findById(savedEmployee.getId()).get();
+		final UUID tenantId = UUID.randomUUID();
+		RequestContext.getContext().setTenantId(tenantId);
+
+		Employee foundEmployee = null;
+		try {
+			foundEmployee = employeeService.get(savedEmployee.getId());
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 
 		assertThat(foundEmployee, is(notNullValue()));
 		assertThat(foundEmployee.getId(), is(savedEmployee.getId()));
+		assertThat(foundEmployee.getTenantId(), is(savedEmployee.getTenantId()));
 	}
+
 }
